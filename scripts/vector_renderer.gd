@@ -5,6 +5,11 @@ extends Node2D
 # Fallback used when a command/style does not provide one.
 @export_range(0.0, 1.0, 0.001) var decay_alpha: float = 0.03
 @export var default_max_trail_samples: int = 180
+@export var default_min_sample_motion: float = 0.01
+@export var ghost_blur_enabled: bool = true
+@export var ghost_blur_width_scale: float = 2.8
+@export var ghost_blur_alpha_scale: float = 0.20
+@export_range(0.0, 1.0, 0.01) var ghost_dot_fade: float = 0.85
 @export var background_color: Color = Color(0, 0, 0, 1)
 
 var _submitted_commands: Array[Dictionary] = []
@@ -54,17 +59,30 @@ func _draw_layer(layer: int) -> void:
 			continue
 		var samples: Array = state.samples
 		var energies: Array = state.energies
+		var sample_count := samples.size()
 		for i in range(samples.size()):
 			var points := samples[i] as PackedVector2Array
 			var energy := float(energies[i])
-			_draw_beam(points, bool(state.closed), bool(state.draw_vertex_dots), style, energy)
+			var blur_factor := 0.0
+			if sample_count > 1:
+				# Older samples get larger blur to mimic phosphor smear.
+				blur_factor = 1.0 - (float(i) / float(sample_count - 1))
+			_draw_beam(
+				points,
+				bool(state.closed),
+				bool(state.draw_vertex_dots),
+				style,
+				energy,
+				blur_factor
+			)
 
 func _draw_beam(
 	points: PackedVector2Array,
 	closed: bool,
 	draw_vertex_dots: bool,
 	style: VectorStyle,
-	energy: float
+	energy: float,
+	blur_factor: float
 ) -> void:
 	if points.size() < 2:
 		return
@@ -93,11 +111,23 @@ func _draw_beam(
 		style.vertex_dot_color.a * energy
 	)
 
+	if ghost_blur_enabled and blur_factor > 0.0:
+		var blur_width_outer := style.beam_width_outer * lerpf(1.0, ghost_blur_width_scale, blur_factor)
+		var blur_width_inner := style.beam_width_inner * lerpf(1.0, ghost_blur_width_scale * 0.75, blur_factor)
+		var blur_alpha := ghost_blur_alpha_scale * blur_factor
+		var blur_outer := Color(outer.r, outer.g, outer.b, outer.a * blur_alpha)
+		var blur_inner := Color(inner.r, inner.g, inner.b, inner.a * blur_alpha * 0.65)
+		draw_polyline(draw_points, blur_outer, blur_width_outer, true)
+		draw_polyline(draw_points, blur_inner, blur_width_inner, true)
+
 	draw_polyline(draw_points, outer, style.beam_width_outer, true)
 	draw_polyline(draw_points, inner, style.beam_width_inner, true)
 
 	if not draw_vertex_dots:
 		return
+
+	var dot_fade := maxf(0.0, 1.0 - blur_factor * ghost_dot_fade)
+	dot = Color(dot.r, dot.g, dot.b, dot.a * dot_fade)
 
 	for i in range(points.size()):
 		draw_circle(points[i], style.vertex_dot_radius, dot)
@@ -138,16 +168,31 @@ func _ingest_commands() -> void:
 		var trail_enabled := bool(command.get("trail_enabled", true))
 		var max_samples := int(command.get("max_trail_samples", default_max_trail_samples))
 		var state_decay_alpha := float(command.get("decay_alpha", _resolve_decay_alpha(style)))
+		var min_sample_motion := maxf(0.0, float(command.get("min_sample_motion", default_min_sample_motion)))
 
 		var samples: Array = state.get("samples", [])
 		var energies: Array = state.get("energies", [])
 
 		if trail_enabled:
-			samples.append(points)
-			energies.append(energy)
-			while samples.size() > max_samples:
-				samples.remove_at(0)
-				energies.remove_at(0)
+			var appended := false
+			if samples.is_empty():
+				samples.append(points)
+				energies.append(energy)
+				appended = true
+			else:
+				var last_points := samples[samples.size() - 1] as PackedVector2Array
+				if _points_are_near(last_points, points, min_sample_motion):
+					var last_index := energies.size() - 1
+					energies[last_index] = maxf(float(energies[last_index]), energy)
+				else:
+					samples.append(points)
+					energies.append(energy)
+					appended = true
+
+			if appended:
+				while samples.size() > max_samples:
+					samples.remove_at(0)
+					energies.remove_at(0)
 		else:
 			samples = [points]
 			energies = [energy]
@@ -188,3 +233,13 @@ func _resolve_decay_alpha(style: VectorStyle) -> float:
 	if style != null:
 		return clampf(style.decay_alpha, 0.0, 1.0)
 	return clampf(decay_alpha, 0.0, 1.0)
+
+func _points_are_near(a: PackedVector2Array, b: PackedVector2Array, max_distance: float) -> bool:
+	if a.size() != b.size():
+		return false
+
+	var max_dist_sq := max_distance * max_distance
+	for i in range(a.size()):
+		if a[i].distance_squared_to(b[i]) > max_dist_sq:
+			return false
+	return true

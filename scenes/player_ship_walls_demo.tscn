@@ -1,10 +1,10 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene format=3 uid="uid://tcxtmlxl788d"]
 
-[ext_resource type="Script" path="res://scripts/vector_renderer.gd" id="1_renderer"]
-[ext_resource type="Script" path="res://scripts/player_ship_controller.gd" id="2_controller"]
-[ext_resource type="Script" path="res://scripts/player_ship_entity.gd" id="3_ship_visual"]
-[ext_resource type="Script" path="res://scripts/static_vector_entity.gd" id="4_static_visual"]
-[ext_resource type="Resource" path="res://styles/player_vector_style.tres" id="5_player_style"]
+[ext_resource type="Script" uid="uid://pxd0miifek2i" path="res://scripts/vector_renderer.gd" id="1_renderer"]
+[ext_resource type="Script" uid="uid://dmeroxinuq7wv" path="res://scripts/player_ship_controller.gd" id="2_controller"]
+[ext_resource type="Script" uid="uid://bu2oli76feyaq" path="res://scripts/player_ship_entity.gd" id="3_ship_visual"]
+[ext_resource type="Script" uid="uid://ni7y3xc1xvqg" path="res://scripts/static_vector_entity.gd" id="4_static_visual"]
+[ext_resource type="Resource" uid="uid://iob05p4u1cwn" path="res://styles/player_vector_style.tres" id="5_player_style"]
 [ext_resource type="Resource" path="res://styles/wall_vector_style.tres" id="6_wall_style"]
 
 [sub_resource type="Environment" id="Environment_1"]
@@ -34,7 +34,7 @@ size = Vector2(380, 48)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_obstacle_b"]
 size = Vector2(380, 48)
 
-[node name="PlayerShipWallsDemo" type="Control"]
+[node name="PlayerShipWallsDemo" type="Control" unique_id=897819071]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -42,7 +42,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BlackBackground" type="ColorRect" parent="."]
+[node name="BlackBackground" type="ColorRect" parent="." unique_id=1220037047]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -52,7 +52,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 1)
 
-[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+[node name="SubViewportContainer" type="SubViewportContainer" parent="." unique_id=1203654907]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -61,28 +61,28 @@ grow_horizontal = 2
 grow_vertical = 2
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer" unique_id=45566256]
 handle_input_locally = false
 size = Vector2i(1920, 1080)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport"]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport" unique_id=1794249827]
 environment = SubResource("Environment_1")
 
-[node name="VectorRenderer" type="Node2D" parent="SubViewportContainer/SubViewport"]
+[node name="VectorRenderer" type="Node2D" parent="SubViewportContainer/SubViewport" unique_id=884012467]
 script = ExtResource("1_renderer")
 default_style = ExtResource("5_player_style")
-decay_alpha = 0.03
+ghost_blur_width_scale = 20.0
 
-[node name="PlayerShipBody" type="CharacterBody2D" parent="SubViewportContainer/SubViewport"]
+[node name="PlayerShipBody" type="CharacterBody2D" parent="SubViewportContainer/SubViewport" unique_id=1772490236]
 position = Vector2(960, 540)
 script = ExtResource("2_controller")
 
-[node name="PlayerShipCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/PlayerShipBody"]
+[node name="PlayerShipCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/PlayerShipBody" unique_id=2026263026]
 shape = SubResource("CircleShape2D_ship")
 
-[node name="PlayerShipVisual" type="Node2D" parent="SubViewportContainer/SubViewport/PlayerShipBody"]
+[node name="PlayerShipVisual" type="Node2D" parent="SubViewportContainer/SubViewport/PlayerShipBody" unique_id=2142290686]
 script = ExtResource("3_ship_visual")
 vector_renderer_path = NodePath("../../VectorRenderer")
 vector_style = ExtResource("5_player_style")
@@ -90,90 +90,90 @@ draw_layer = 10
 max_trail_samples = 220
 command_key = "player_ship"
 
-[node name="Walls" type="Node2D" parent="SubViewportContainer/SubViewport"]
+[node name="Walls" type="Node2D" parent="SubViewportContainer/SubViewport" unique_id=550805450]
 
-[node name="TopWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls"]
+[node name="TopWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls" unique_id=137115952]
 position = Vector2(960, 70)
 
-[node name="TopWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/TopWall"]
+[node name="TopWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/TopWall" unique_id=710835958]
 shape = SubResource("RectangleShape2D_top")
 
-[node name="TopWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/TopWall"]
+[node name="TopWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/TopWall" unique_id=1745765194]
 script = ExtResource("4_static_visual")
+rect_size = Vector2(1700, 60)
 vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
-rect_size = Vector2(1700, 60)
 command_key = "wall_top"
 
-[node name="BottomWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls"]
+[node name="BottomWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls" unique_id=957891294]
 position = Vector2(960, 1010)
 
-[node name="BottomWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/BottomWall"]
+[node name="BottomWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/BottomWall" unique_id=1410367642]
 shape = SubResource("RectangleShape2D_bottom")
 
-[node name="BottomWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/BottomWall"]
+[node name="BottomWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/BottomWall" unique_id=6601657]
 script = ExtResource("4_static_visual")
+rect_size = Vector2(1700, 60)
 vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
-rect_size = Vector2(1700, 60)
 command_key = "wall_bottom"
 
-[node name="LeftWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls"]
+[node name="LeftWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls" unique_id=815193147]
 position = Vector2(90, 540)
 
-[node name="LeftWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/LeftWall"]
+[node name="LeftWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/LeftWall" unique_id=1347775814]
 shape = SubResource("RectangleShape2D_left")
 
-[node name="LeftWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/LeftWall"]
+[node name="LeftWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/LeftWall" unique_id=19316450]
 script = ExtResource("4_static_visual")
+rect_size = Vector2(60, 900)
 vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
-rect_size = Vector2(60, 900)
 command_key = "wall_left"
 
-[node name="RightWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls"]
+[node name="RightWall" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls" unique_id=338643286]
 position = Vector2(1830, 540)
 
-[node name="RightWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/RightWall"]
+[node name="RightWallCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/RightWall" unique_id=1335410905]
 shape = SubResource("RectangleShape2D_right")
 
-[node name="RightWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/RightWall"]
+[node name="RightWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/RightWall" unique_id=444328453]
 script = ExtResource("4_static_visual")
+rect_size = Vector2(60, 900)
 vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
-rect_size = Vector2(60, 900)
 command_key = "wall_right"
 
-[node name="CenterObstacleA" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls"]
+[node name="CenterObstacleA" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls" unique_id=2119264517]
 position = Vector2(710, 540)
 rotation = 0.366519
 
-[node name="CenterObstacleACollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleA"]
+[node name="CenterObstacleACollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleA" unique_id=505324768]
 shape = SubResource("RectangleShape2D_obstacle_a")
 
-[node name="CenterObstacleAVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleA"]
+[node name="CenterObstacleAVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleA" unique_id=2095454238]
 script = ExtResource("4_static_visual")
+rect_size = Vector2(380, 48)
 vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
-rect_size = Vector2(380, 48)
 command_key = "obstacle_a"
 
-[node name="CenterObstacleB" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls"]
+[node name="CenterObstacleB" type="StaticBody2D" parent="SubViewportContainer/SubViewport/Walls" unique_id=964599144]
 position = Vector2(1210, 540)
 rotation = -0.366519
 
-[node name="CenterObstacleBCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleB"]
+[node name="CenterObstacleBCollision" type="CollisionShape2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleB" unique_id=1338150410]
 shape = SubResource("RectangleShape2D_obstacle_b")
 
-[node name="CenterObstacleBVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleB"]
+[node name="CenterObstacleBVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleB" unique_id=511737292]
 script = ExtResource("4_static_visual")
+rect_size = Vector2(380, 48)
 vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
-rect_size = Vector2(380, 48)
 command_key = "obstacle_b"

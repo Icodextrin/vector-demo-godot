@@ -124,6 +124,11 @@ Public/exported fields:
 - `default_style`
 - `decay_alpha` (global fallback only)
 - `default_max_trail_samples`
+- `default_min_sample_motion` (dedup threshold to avoid repeated identical trail samples)
+- `ghost_blur_enabled`
+- `ghost_blur_width_scale`
+- `ghost_blur_alpha_scale`
+- `ghost_dot_fade`
 - `background_color`
 
 Public method:
@@ -350,6 +355,11 @@ No persistence:
 - Verify stable command keys.
 - Lower `decay_alpha` (style or command-level).
 - Ensure `trail_enabled = true` and adequate `max_trail_samples`.
+
+Repeating grouped ghosts (e.g. several close copies then a gap):
+- Cause: render-frame submission with physics-tick movement can produce repeated identical samples.
+- Fix: increase `VectorRenderer.default_min_sample_motion` slightly (for example `0.01` to `0.5`) or pass `min_sample_motion` per command.
+- Optional smoothing: enable and tune `ghost_blur_*` settings so older samples spread/fade more naturally.
 
 Static objects smearing:
 - Set `trail_enabled = false` for static entities.
