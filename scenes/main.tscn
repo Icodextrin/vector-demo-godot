@@ -54,7 +54,6 @@ renderer_preset = ExtResource("4_preset")
 
 [node name="BouncingBall" type="Node2D" parent="SubViewportContainer/SubViewport"]
 script = ExtResource("2_ball")
-vector_renderer_path = NodePath("../VectorRenderer")
 vector_style = ExtResource("3_style")
 ball_radius = 150.0
 circle_segments = 16

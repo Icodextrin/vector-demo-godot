@@ -1,11 +1,11 @@
 class_name PlayerShipController
 extends CharacterBody2D
 
-@export var turn_speed_deg: float = 220.0
-@export var thrust: float = 900.0
-@export var brake_force: float = 700.0
-@export var max_speed: float = 900.0
-@export var linear_damping: float = 0.985
+@export_range(0.0, 1080.0, 1.0) var turn_speed_deg: float = 220.0
+@export_range(0.0, 4000.0, 1.0) var thrust: float = 900.0
+@export_range(0.0, 4000.0, 1.0) var brake_force: float = 700.0
+@export_range(0.0, 4000.0, 1.0) var max_speed: float = 900.0
+@export_range(0.0, 1.0, 0.001) var linear_damping: float = 0.985
 
 func _physics_process(delta: float) -> void:
 	var turn_input := Input.get_axis("ui_left", "ui_right")

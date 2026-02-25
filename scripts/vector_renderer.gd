@@ -1,142 +1,52 @@
 class_name VectorRenderer
 extends Node2D
 
+const TRAIL_ENERGY_CUTOFF := 0.01
+const MOTION_RANGE_EPSILON := 0.0001
+const VECTOR_LENGTH_EPSILON_SQ := 0.000001
+const DECAY_REFERENCE_FPS := 60.0
+const HASH_SEED_MODULO := 8192
+const HASH_SEED_SCALE := 0.001
+
 @export var default_style: VectorStyle
+
 var _renderer_preset: VectorRendererPreset
+var _active_preset: VectorRendererPreset = VectorRendererPreset.new()
+
 @export var renderer_preset: VectorRendererPreset:
 	get:
 		return _renderer_preset
 	set(value):
 		_renderer_preset = value
-		if is_node_ready() and _renderer_preset != null:
-			_apply_preset(_renderer_preset)
+		if is_node_ready():
+			_refresh_active_preset()
 
-# Runtime values are sourced from renderer_preset.
-var decay_alpha: float = 0.03
-var default_max_trail_samples: int = 180
-var default_min_sample_motion: float = 0.01
-var outer_soft_blur_enabled: bool = true
-var outer_soft_blur_passes: int = 3
-var outer_soft_blur_width_step: float = 0.65
-var outer_soft_blur_alpha_scale: float = 0.22
-var ghost_blur_enabled: bool = true
-var ghost_blur_width_scale: float = 2.8
-var ghost_blur_alpha_scale: float = 0.20
-var ghost_dot_fade: float = 0.85
-var ghost_jitter_enabled: bool = true
-var ghost_jitter_pixels: float = 0.8
-var ghost_jitter_speed: float = 1.9
-var ghost_jitter_age_scale: float = 1.0
-var ghost_jitter_stationary_scale: float = 0.18
-var ghost_jitter_moving_scale: float = 1.25
-var ghost_jitter_motion_min: float = 2.0
-var ghost_jitter_motion_max: float = 18.0
-var ghost_jitter_motion_response: float = 0.22
-var ghost_jitter_max_rise_per_sample: float = 0.08
-var corner_dwell_enabled: bool = true
-var corner_dwell_boost: float = 1.35
-var corner_dwell_power: float = 1.2
-var corner_endpoint_boost: float = 0.10
-var retrace_dimming_enabled: bool = true
-var retrace_reference_length: float = 32.0
-var retrace_dimming_strength: float = 0.03
-var two_stage_decay_enabled: bool = true
-var two_stage_knee_energy: float = 0.22
-var two_stage_tail_alpha_multiplier: float = 0.35
-var background_color: Color = Color(0, 0, 0, 1)
-
-var _submitted_commands: Array[Dictionary] = []
+var _submitted_commands: Array[VectorDrawCommand] = []
 var _trail_states: Dictionary = {}
 var _frame_delta: float = 1.0 / 60.0
 var _time_accum: float = 0.0
 
 func _ready() -> void:
 	add_to_group("vector_renderer")
-	if _renderer_preset == null:
-		_renderer_preset = VectorRendererPreset.new()
-	_apply_preset(_renderer_preset)
+	_refresh_active_preset()
 
 func apply_preset(preset: VectorRendererPreset) -> void:
 	if preset == null:
 		return
-	_renderer_preset = preset
-	_apply_preset(preset)
+	renderer_preset = preset
 
 func snapshot_preset() -> VectorRendererPreset:
-	var preset: VectorRendererPreset = VectorRendererPreset.new()
-	preset.decay_alpha = decay_alpha
-	preset.default_max_trail_samples = default_max_trail_samples
-	preset.default_min_sample_motion = default_min_sample_motion
-	preset.outer_soft_blur_enabled = outer_soft_blur_enabled
-	preset.outer_soft_blur_passes = outer_soft_blur_passes
-	preset.outer_soft_blur_width_step = outer_soft_blur_width_step
-	preset.outer_soft_blur_alpha_scale = outer_soft_blur_alpha_scale
-	preset.ghost_blur_enabled = ghost_blur_enabled
-	preset.ghost_blur_width_scale = ghost_blur_width_scale
-	preset.ghost_blur_alpha_scale = ghost_blur_alpha_scale
-	preset.ghost_dot_fade = ghost_dot_fade
-	preset.ghost_jitter_enabled = ghost_jitter_enabled
-	preset.ghost_jitter_pixels = ghost_jitter_pixels
-	preset.ghost_jitter_speed = ghost_jitter_speed
-	preset.ghost_jitter_age_scale = ghost_jitter_age_scale
-	preset.ghost_jitter_stationary_scale = ghost_jitter_stationary_scale
-	preset.ghost_jitter_moving_scale = ghost_jitter_moving_scale
-	preset.ghost_jitter_motion_min = ghost_jitter_motion_min
-	preset.ghost_jitter_motion_max = ghost_jitter_motion_max
-	preset.ghost_jitter_motion_response = ghost_jitter_motion_response
-	preset.ghost_jitter_max_rise_per_sample = ghost_jitter_max_rise_per_sample
-	preset.corner_dwell_enabled = corner_dwell_enabled
-	preset.corner_dwell_boost = corner_dwell_boost
-	preset.corner_dwell_power = corner_dwell_power
-	preset.corner_endpoint_boost = corner_endpoint_boost
-	preset.retrace_dimming_enabled = retrace_dimming_enabled
-	preset.retrace_reference_length = retrace_reference_length
-	preset.retrace_dimming_strength = retrace_dimming_strength
-	preset.two_stage_decay_enabled = two_stage_decay_enabled
-	preset.two_stage_knee_energy = two_stage_knee_energy
-	preset.two_stage_tail_alpha_multiplier = two_stage_tail_alpha_multiplier
-	preset.background_color = background_color
-	return preset
+	if _active_preset == null:
+		return VectorRendererPreset.new()
+	return _active_preset.duplicate(true) as VectorRendererPreset
 
-func _apply_preset(preset: VectorRendererPreset) -> void:
-	decay_alpha = clampf(preset.decay_alpha, 0.0, 1.0)
-	default_max_trail_samples = maxi(1, preset.default_max_trail_samples)
-	default_min_sample_motion = maxf(0.0, preset.default_min_sample_motion)
-	outer_soft_blur_enabled = preset.outer_soft_blur_enabled
-	outer_soft_blur_passes = maxi(0, preset.outer_soft_blur_passes)
-	outer_soft_blur_width_step = maxf(0.0, preset.outer_soft_blur_width_step)
-	outer_soft_blur_alpha_scale = maxf(0.0, preset.outer_soft_blur_alpha_scale)
-	ghost_blur_enabled = preset.ghost_blur_enabled
-	ghost_blur_width_scale = maxf(0.0, preset.ghost_blur_width_scale)
-	ghost_blur_alpha_scale = maxf(0.0, preset.ghost_blur_alpha_scale)
-	ghost_dot_fade = clampf(preset.ghost_dot_fade, 0.0, 1.0)
-	ghost_jitter_enabled = preset.ghost_jitter_enabled
-	ghost_jitter_pixels = maxf(0.0, preset.ghost_jitter_pixels)
-	ghost_jitter_speed = maxf(0.0, preset.ghost_jitter_speed)
-	ghost_jitter_age_scale = maxf(0.0, preset.ghost_jitter_age_scale)
-	ghost_jitter_stationary_scale = maxf(0.0, preset.ghost_jitter_stationary_scale)
-	ghost_jitter_moving_scale = maxf(0.0, preset.ghost_jitter_moving_scale)
-	ghost_jitter_motion_min = maxf(0.0, preset.ghost_jitter_motion_min)
-	ghost_jitter_motion_max = maxf(0.0, preset.ghost_jitter_motion_max)
-	ghost_jitter_motion_response = clampf(preset.ghost_jitter_motion_response, 0.01, 1.0)
-	ghost_jitter_max_rise_per_sample = maxf(0.0, preset.ghost_jitter_max_rise_per_sample)
-	corner_dwell_enabled = preset.corner_dwell_enabled
-	corner_dwell_boost = maxf(0.0, preset.corner_dwell_boost)
-	corner_dwell_power = maxf(0.01, preset.corner_dwell_power)
-	corner_endpoint_boost = maxf(0.0, preset.corner_endpoint_boost)
-	retrace_dimming_enabled = preset.retrace_dimming_enabled
-	retrace_reference_length = maxf(0.001, preset.retrace_reference_length)
-	retrace_dimming_strength = maxf(0.0, preset.retrace_dimming_strength)
-	two_stage_decay_enabled = preset.two_stage_decay_enabled
-	two_stage_knee_energy = clampf(preset.two_stage_knee_energy, 0.0, 1.0)
-	two_stage_tail_alpha_multiplier = clampf(preset.two_stage_tail_alpha_multiplier, 0.0, 1.0)
-	background_color = preset.background_color
-	queue_redraw()
-
-func submit_command(command: Dictionary) -> void:
-	if not command.has("key"):
+func submit_command(command_data: Variant) -> void:
+	var command := VectorDrawCommand.from_variant(command_data)
+	if command == null:
 		return
-	if not command.has("points"):
+	if command.key.is_empty():
+		return
+	if command.points.size() < 2:
 		return
 	_submitted_commands.append(command)
 
@@ -152,51 +62,65 @@ func _draw() -> void:
 	_submitted_commands.clear()
 
 	var viewport_size := get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, viewport_size), background_color, true)
+	draw_rect(Rect2(Vector2.ZERO, viewport_size), _active_preset.background_color, true)
 
-	var layers := _collect_layers()
+	var layer_buckets := _build_layer_buckets()
+	var layers: Array = layer_buckets.keys()
 	layers.sort()
 	for layer in layers:
-		_draw_layer(int(layer))
+		var states: Array = layer_buckets[int(layer)]
+		_draw_layer(states)
 
-func _collect_layers() -> Array:
-	var seen: Dictionary = {}
-	for state in _trail_states.values():
-		seen[int(state.layer)] = true
-	return seen.keys()
+func _refresh_active_preset() -> void:
+	if _renderer_preset == null:
+		_renderer_preset = VectorRendererPreset.new()
+	_active_preset = _renderer_preset.normalized_copy()
+	queue_redraw()
 
-func _draw_layer(layer: int) -> void:
-	for key in _trail_states.keys():
-		var state: Dictionary = _trail_states[key]
-		if int(state.layer) != layer:
+func _build_layer_buckets() -> Dictionary:
+	var buckets: Dictionary = {}
+	for state_variant in _trail_states.values():
+		var state := state_variant as VectorTrailState
+		if state == null:
 			continue
-		var style: VectorStyle = state.style as VectorStyle
-		if style == null:
+		var layer: int = state.layer
+		var states_for_layer: Array = buckets.get(layer, [])
+		states_for_layer.append(state)
+		buckets[layer] = states_for_layer
+	return buckets
+
+func _draw_layer(states: Array) -> void:
+	for state_variant in states:
+		var state := state_variant as VectorTrailState
+		if state == null:
 			continue
-		var samples: Array = state.samples
-		var energies: Array = state.energies
-		var motions: Array = state.get("motions", [])
-		var sample_count := samples.size()
-		for i in range(samples.size()):
-			var points := samples[i] as PackedVector2Array
-			var energy := float(energies[i])
-			var sample_motion_blend := 0.0
-			if i < motions.size():
-				sample_motion_blend = float(motions[i])
-			var blur_factor := 0.0
-			if sample_count > 1:
-				# Older samples get larger blur to mimic phosphor smear.
-				blur_factor = 1.0 - (float(i) / float(sample_count - 1))
-			if ghost_jitter_enabled and blur_factor > 0.0:
-				points = _offset_points(points, _compute_jitter_offset(str(key), i, blur_factor, sample_motion_blend))
+		if state.style == null:
+			continue
+
+		var sample_count := state.samples.size()
+		for i in range(sample_count):
+			var points: PackedVector2Array = state.samples[i]
+			var energy: float = state.energies[i]
+			var sample_motion_blend: float = state.motions[i] if i < state.motions.size() else 0.0
+			var blur_factor := _compute_blur_factor(i, sample_count)
+
+			if _active_preset.ghost_jitter_enabled and blur_factor > 0.0:
+				points = _offset_points(points, _compute_jitter_offset(state, i, blur_factor, sample_motion_blend))
+
 			_draw_beam(
 				points,
-				bool(state.closed),
-				bool(state.draw_vertex_dots),
-				style,
+				state.closed,
+				state.draw_vertex_dots,
+				state.style,
 				energy,
 				blur_factor
 			)
+
+func _compute_blur_factor(sample_index: int, sample_count: int) -> float:
+	if sample_count <= 1:
+		return 0.0
+	# Older samples get larger blur to mimic phosphor smear.
+	return 1.0 - (float(sample_index) / float(sample_count - 1))
 
 func _draw_beam(
 	points: PackedVector2Array,
@@ -215,7 +139,7 @@ func _draw_beam(
 		draw_points.append(points[0])
 
 	var point_factors := PackedFloat32Array()
-	if retrace_dimming_enabled:
+	if _active_preset.retrace_dimming_enabled:
 		point_factors = _build_retrace_point_factors(draw_points)
 
 	var outer := Color(
@@ -239,10 +163,10 @@ func _draw_beam(
 
 	_draw_outer_halo(draw_points, outer, style.beam_width_outer, point_factors)
 
-	if ghost_blur_enabled and blur_factor > 0.0:
-		var blur_width_outer := style.beam_width_outer * lerpf(1.0, ghost_blur_width_scale, blur_factor)
-		var blur_width_inner := style.beam_width_inner * lerpf(1.0, ghost_blur_width_scale * 0.75, blur_factor)
-		var blur_alpha := ghost_blur_alpha_scale * blur_factor
+	if _active_preset.ghost_blur_enabled and blur_factor > 0.0:
+		var blur_width_outer := style.beam_width_outer * lerpf(1.0, _active_preset.ghost_blur_width_scale, blur_factor)
+		var blur_width_inner := style.beam_width_inner * lerpf(1.0, _active_preset.ghost_blur_width_scale * 0.75, blur_factor)
+		var blur_alpha := _active_preset.ghost_blur_alpha_scale * blur_factor
 		var blur_outer := Color(outer.r, outer.g, outer.b, outer.a * blur_alpha)
 		var blur_inner := Color(inner.r, inner.g, inner.b, inner.a * blur_alpha * 0.65)
 		_draw_polyline_with_factors(draw_points, blur_outer, blur_width_outer, point_factors)
@@ -253,7 +177,7 @@ func _draw_beam(
 	if not draw_vertex_dots:
 		return
 
-	var dot_fade := maxf(0.0, 1.0 - blur_factor * ghost_dot_fade)
+	var dot_fade := maxf(0.0, 1.0 - blur_factor * _active_preset.ghost_dot_fade)
 	var retrace_enabled := point_factors.size() == draw_points.size()
 
 	for i in range(points.size()):
@@ -262,9 +186,9 @@ func _draw_beam(
 			retrace_factor = point_factors[i]
 
 		var dwell_factor := 1.0
-		if corner_dwell_enabled:
+		if _active_preset.corner_dwell_enabled:
 			var corner_strength := _compute_corner_strength(points, i, closed)
-			dwell_factor += corner_dwell_boost * pow(corner_strength, corner_dwell_power)
+			dwell_factor += _active_preset.corner_dwell_boost * pow(corner_strength, _active_preset.corner_dwell_power)
 
 		var dot_color := Color(
 			dot.r * retrace_factor * dwell_factor,
@@ -283,165 +207,150 @@ func _draw_outer_halo(
 	if outer.a <= 0.0 or outer_width <= 0.0:
 		return
 
-	if not outer_soft_blur_enabled or outer_soft_blur_passes <= 0 or outer_soft_blur_alpha_scale <= 0.0:
+	if not _active_preset.outer_soft_blur_enabled or _active_preset.outer_soft_blur_passes <= 0 or _active_preset.outer_soft_blur_alpha_scale <= 0.0:
 		_draw_polyline_with_factors(points, outer, outer_width, point_factors)
 		return
 
-	var core_width: float = maxf(0.5, outer_width * 0.68)
-	var core_color: Color = Color(outer.r, outer.g, outer.b, outer.a * 0.55)
+	var core_width := maxf(0.5, outer_width * 0.68)
+	var core_color := Color(outer.r, outer.g, outer.b, outer.a * 0.55)
 	_draw_polyline_with_factors(points, core_color, core_width, point_factors)
 
-	var mid_color: Color = Color(outer.r, outer.g, outer.b, outer.a * 0.38)
+	var mid_color := Color(outer.r, outer.g, outer.b, outer.a * 0.38)
 	_draw_polyline_with_factors(points, mid_color, outer_width, point_factors)
 
-	var blur_passes: int = maxi(1, outer_soft_blur_passes)
-	var max_width: float = outer_width * (1.0 + outer_soft_blur_width_step)
+	var blur_passes := maxi(1, _active_preset.outer_soft_blur_passes)
+	var max_width := outer_width * (1.0 + _active_preset.outer_soft_blur_width_step)
 	for pass_index in range(blur_passes):
-		var t: float = float(pass_index + 1) / float(blur_passes)
-		var width_t: float = pow(t, 0.75)
-		var blur_width: float = lerpf(outer_width, max_width, width_t)
-		var falloff: float = pow(1.0 - t, 1.6)
-		var blur_alpha: float = outer.a * outer_soft_blur_alpha_scale * falloff
+		var t := float(pass_index + 1) / float(blur_passes)
+		var width_t := pow(t, 0.75)
+		var blur_width := lerpf(outer_width, max_width, width_t)
+		var falloff := pow(1.0 - t, 1.6)
+		var blur_alpha := outer.a * _active_preset.outer_soft_blur_alpha_scale * falloff
 		if blur_alpha <= 0.0001:
 			continue
-		var blur_color: Color = Color(outer.r, outer.g, outer.b, blur_alpha)
+		var blur_color := Color(outer.r, outer.g, outer.b, blur_alpha)
 		_draw_polyline_with_factors(points, blur_color, blur_width, point_factors)
 
 func _decay_trails(delta: float) -> void:
 	var frame_decay_cache: Dictionary = {}
-	for key in _trail_states.keys():
-		var state: Dictionary = _trail_states[key]
-		var state_decay_alpha := float(state.get("decay_alpha", decay_alpha))
-		state_decay_alpha = clampf(state_decay_alpha, 0.0, 1.0)
-		var energies: Array = state.energies
-		for i in range(energies.size()):
+	for state_variant in _trail_states.values():
+		var state := state_variant as VectorTrailState
+		if state == null:
+			continue
+		var state_decay_alpha := clampf(state.decay_alpha, 0.0, 1.0)
+		for i in range(state.energies.size()):
 			var sample_decay_alpha := state_decay_alpha
-			if two_stage_decay_enabled and float(energies[i]) <= two_stage_knee_energy:
-				sample_decay_alpha *= two_stage_tail_alpha_multiplier
+			if _active_preset.two_stage_decay_enabled and state.energies[i] <= _active_preset.two_stage_knee_energy:
+				sample_decay_alpha *= _active_preset.two_stage_tail_alpha_multiplier
 			sample_decay_alpha = clampf(sample_decay_alpha, 0.0, 1.0)
 
 			var frame_decay := float(frame_decay_cache.get(sample_decay_alpha, -1.0))
 			if frame_decay < 0.0:
-				frame_decay = pow(1.0 - sample_decay_alpha, delta * 60.0)
+				frame_decay = pow(1.0 - sample_decay_alpha, delta * DECAY_REFERENCE_FPS)
 				frame_decay_cache[sample_decay_alpha] = frame_decay
 
-			energies[i] = float(energies[i]) * frame_decay
-		state.energies = energies
-		_trail_states[key] = state
+			state.energies[i] *= frame_decay
 
 func _ingest_commands() -> void:
 	for command in _submitted_commands:
-		var key: String = str(command.key)
-		var state: Dictionary = _trail_states.get(key, {})
+		if command == null:
+			continue
 
-		var style: VectorStyle = command.get("style", default_style) as VectorStyle
+		var style := command.style if command.style != null else default_style
 		if style == null:
 			continue
-
-		var points: PackedVector2Array = command.points as PackedVector2Array
-		if points.size() < 2:
+		if command.points.size() < 2:
 			continue
 
-		var energy: float = float(command.get("intensity", 1.0))
-		var layer: int = int(command.get("layer", 0))
-		var closed: bool = bool(command.get("closed", false))
-		var draw_vertex_dots: bool = bool(command.get("draw_vertex_dots", true))
-		var trail_enabled: bool = bool(command.get("trail_enabled", true))
-		var max_samples: int = int(command.get("max_trail_samples", default_max_trail_samples))
-		var state_decay_alpha: float = float(command.get("decay_alpha", _resolve_decay_alpha(style)))
-		var min_sample_motion: float = maxf(0.0, float(command.get("min_sample_motion", default_min_sample_motion)))
+		var key := command.key
+		var state := _trail_states.get(key) as VectorTrailState
+		if state == null:
+			state = VectorTrailState.new()
 
-		var samples: Array = state.get("samples", [])
-		var energies: Array = state.get("energies", [])
-		var motions: Array = state.get("motions", [])
+		var energy := _resolve_intensity(command.intensity)
+		var layer := _resolve_layer(command.layer)
+		var max_samples := _resolve_max_samples(command.max_trail_samples)
+		var min_sample_motion := _resolve_min_sample_motion(command.min_sample_motion)
+		var state_decay_alpha := _resolve_decay_alpha(command.decay_alpha, style)
 
-		if trail_enabled:
-			var appended: bool = false
-			if samples.is_empty():
-				samples.append(points)
-				energies.append(energy)
-				motions.append(0.0)
-				state.motion_blend = 0.0
-				appended = true
-			else:
-				var last_points: PackedVector2Array = samples[samples.size() - 1] as PackedVector2Array
-				var motion_distance: float = _centroid_distance(last_points, points)
-				var previous_blend: float = float(state.get("motion_blend", 0.0))
-				var target_blend: float = _compute_motion_blend(motion_distance)
-				var smoothed_blend: float = lerpf(previous_blend, target_blend, ghost_jitter_motion_response)
-				smoothed_blend = minf(smoothed_blend, previous_blend + ghost_jitter_max_rise_per_sample)
-				if _points_are_near(last_points, points, min_sample_motion):
-					var last_index: int = energies.size() - 1
-					# Keep head sample aligned with latest transform while still suppressing duplicates.
-					samples[last_index] = points
-					energies[last_index] = maxf(float(energies[last_index]), energy)
-					if last_index < motions.size():
-						motions[last_index] = smoothed_blend
-					state.motion_blend = smoothed_blend
-				else:
-					samples.append(points)
-					energies.append(energy)
-					motions.append(smoothed_blend)
-					state.motion_blend = smoothed_blend
-					appended = true
-
-			if appended:
-				while samples.size() > max_samples:
-					samples.remove_at(0)
-					energies.remove_at(0)
-					motions.remove_at(0)
+		if command.trail_enabled:
+			_ingest_trail_sample(state, command.points, energy, max_samples, min_sample_motion)
 		else:
-			samples = [points]
-			energies = [energy]
-			motions = [0.0]
-			state.motion_blend = 0.0
+			state.reset_single_sample(command.points, energy)
 
 		state.style = style
+		state.command_key = key
 		state.layer = layer
-		state.closed = closed
-		state.draw_vertex_dots = draw_vertex_dots
-		state.samples = samples
-		state.energies = energies
-		state.motions = motions
-		state.trail_enabled = trail_enabled
+		state.closed = command.closed
+		state.draw_vertex_dots = command.draw_vertex_dots
+		state.trail_enabled = command.trail_enabled
 		state.decay_alpha = state_decay_alpha
 		_trail_states[key] = state
+
+func _ingest_trail_sample(
+	state: VectorTrailState,
+	points: PackedVector2Array,
+	energy: float,
+	max_samples: int,
+	min_sample_motion: float
+) -> void:
+	if state.samples.is_empty():
+		state.append_sample(points, energy, 0.0, max_samples)
+		state.motion_blend = 0.0
+		return
+
+	var last_points := state.samples[state.samples.size() - 1]
+	var motion_distance := _centroid_distance(last_points, points)
+	var target_blend := _compute_motion_blend(motion_distance)
+	var smoothed_blend := lerpf(state.motion_blend, target_blend, _active_preset.ghost_jitter_motion_response)
+	smoothed_blend = minf(smoothed_blend, state.motion_blend + _active_preset.ghost_jitter_max_rise_per_sample)
+
+	if _points_are_near(last_points, points, min_sample_motion):
+		# Keep head sample aligned with latest transform while still suppressing duplicates.
+		state.refresh_last_sample(points, energy, smoothed_blend)
+		return
+
+	state.append_sample(points, energy, smoothed_blend, max_samples)
 
 func _cleanup_dead_trails() -> void:
 	var dead_keys: Array = []
 	for key in _trail_states.keys():
-		var state: Dictionary = _trail_states[key]
-		var samples: Array = state.get("samples", [])
-		var energies: Array = state.get("energies", [])
-		var motions: Array = state.get("motions", [])
-		var keep_samples: Array = []
-		var keep_energies: Array = []
-		var keep_motions: Array = []
-		for i in range(samples.size()):
-			if float(energies[i]) > 0.01:
-				keep_samples.append(samples[i])
-				keep_energies.append(energies[i])
-				if i < motions.size():
-					keep_motions.append(motions[i])
-				else:
-					keep_motions.append(0.0)
-		state.samples = keep_samples
-		state.energies = keep_energies
-		state.motions = keep_motions
-		if not keep_motions.is_empty():
-			state.motion_blend = float(keep_motions[keep_motions.size() - 1])
-		_trail_states[key] = state
-
-		if keep_samples.is_empty():
+		var state := _trail_states[key] as VectorTrailState
+		if state == null:
+			dead_keys.append(key)
+			continue
+		if not state.prune_dead_samples(TRAIL_ENERGY_CUTOFF):
 			dead_keys.append(key)
 
 	for key in dead_keys:
 		_trail_states.erase(key)
 
-func _resolve_decay_alpha(style: VectorStyle) -> float:
+func _resolve_intensity(raw_intensity: float) -> float:
+	if is_nan(raw_intensity):
+		return 1.0
+	return maxf(0.0, raw_intensity)
+
+func _resolve_layer(raw_layer: int) -> int:
+	if raw_layer == VectorDrawCommand.LAYER_UNSET:
+		return 0
+	return raw_layer
+
+func _resolve_max_samples(raw_max_samples: int) -> int:
+	if raw_max_samples >= 1:
+		return raw_max_samples
+	return _active_preset.default_max_trail_samples
+
+func _resolve_min_sample_motion(raw_min_sample_motion: float) -> float:
+	if raw_min_sample_motion >= 0.0:
+		return raw_min_sample_motion
+	return _active_preset.default_min_sample_motion
+
+func _resolve_decay_alpha(raw_decay_alpha: float, style: VectorStyle) -> float:
+	if raw_decay_alpha >= 0.0:
+		return clampf(raw_decay_alpha, 0.0, 1.0)
 	if style != null:
 		return clampf(style.decay_alpha, 0.0, 1.0)
-	return clampf(decay_alpha, 0.0, 1.0)
+	return _active_preset.decay_alpha
 
 func _points_are_near(a: PackedVector2Array, b: PackedVector2Array, max_distance: float) -> bool:
 	if a.size() != b.size():
@@ -454,30 +363,30 @@ func _points_are_near(a: PackedVector2Array, b: PackedVector2Array, max_distance
 	return true
 
 func _compute_jitter_offset(
-	state_key: String,
+	state: VectorTrailState,
 	sample_index: int,
 	blur_factor: float,
 	sample_motion_blend: float
 ) -> Vector2:
 	var motion_t := clampf(sample_motion_blend, 0.0, 1.0)
-	var motion_scale := lerpf(ghost_jitter_stationary_scale, ghost_jitter_moving_scale, motion_t)
-	var magnitude := ghost_jitter_pixels * blur_factor * ghost_jitter_age_scale * motion_scale
+	var motion_scale := lerpf(_active_preset.ghost_jitter_stationary_scale, _active_preset.ghost_jitter_moving_scale, motion_t)
+	var magnitude := _active_preset.ghost_jitter_pixels * blur_factor * _active_preset.ghost_jitter_age_scale * motion_scale
 	if magnitude <= 0.0:
 		return Vector2.ZERO
 
-	var seed := float(abs(hash(state_key)) % 8192) * 0.001
-	var t := _time_accum * ghost_jitter_speed
+	var seed := float(abs(hash(state.command_key)) % HASH_SEED_MODULO) * HASH_SEED_SCALE
+	var t := _time_accum * _active_preset.ghost_jitter_speed
 	return Vector2(
 		sin(t + seed + float(sample_index) * 0.73),
 		cos(t * 1.17 + seed * 1.31 + float(sample_index) * 0.41)
 	) * magnitude
 
 func _compute_motion_blend(sample_motion: float) -> float:
-	var min_m := minf(ghost_jitter_motion_min, ghost_jitter_motion_max)
-	var max_m := maxf(ghost_jitter_motion_min, ghost_jitter_motion_max)
-	if max_m - min_m < 0.0001:
-		return 1.0 if sample_motion >= max_m else 0.0
-	return clampf((sample_motion - min_m) / (max_m - min_m), 0.0, 1.0)
+	var min_motion := minf(_active_preset.ghost_jitter_motion_min, _active_preset.ghost_jitter_motion_max)
+	var max_motion := maxf(_active_preset.ghost_jitter_motion_min, _active_preset.ghost_jitter_motion_max)
+	if max_motion - min_motion < MOTION_RANGE_EPSILON:
+		return 1.0 if sample_motion >= max_motion else 0.0
+	return clampf((sample_motion - min_motion) / (max_motion - min_motion), 0.0, 1.0)
 
 func _offset_points(points: PackedVector2Array, offset: Vector2) -> PackedVector2Array:
 	var shifted := PackedVector2Array()
@@ -487,13 +396,14 @@ func _offset_points(points: PackedVector2Array, offset: Vector2) -> PackedVector
 	return shifted
 
 func _centroid_distance(a: PackedVector2Array, b: PackedVector2Array) -> float:
-	if a.size() == 0 or b.size() == 0:
+	if a.is_empty() or b.is_empty():
 		return 0.0
 	return _compute_centroid(a).distance_to(_compute_centroid(b))
 
 func _compute_centroid(points: PackedVector2Array) -> Vector2:
 	if points.is_empty():
 		return Vector2.ZERO
+
 	var sum := Vector2.ZERO
 	for i in range(points.size()):
 		sum += points[i]
@@ -508,11 +418,11 @@ func _build_retrace_point_factors(points: PackedVector2Array) -> PackedFloat32Ar
 	if points.size() < 2:
 		return factors
 
-	var ref_len := maxf(0.001, retrace_reference_length)
+	var ref_len := maxf(0.001, _active_preset.retrace_reference_length)
 	for i in range(points.size() - 1):
 		var seg_len := points[i].distance_to(points[i + 1])
 		var over := maxf(0.0, (seg_len / ref_len) - 1.0)
-		var dim := 1.0 / (1.0 + over * retrace_dimming_strength)
+		var dim := 1.0 / (1.0 + over * _active_preset.retrace_dimming_strength)
 		factors[i] = minf(factors[i], dim)
 		factors[i + 1] = minf(factors[i + 1], dim)
 
@@ -524,16 +434,16 @@ func _draw_polyline_with_factors(
 	width: float,
 	point_factors: PackedFloat32Array
 ) -> void:
-	if retrace_dimming_enabled and point_factors.size() == points.size():
+	if _active_preset.retrace_dimming_enabled and point_factors.size() == points.size():
 		var colors := PackedColorArray()
 		colors.resize(points.size())
 		for i in range(points.size()):
-			var f := point_factors[i]
+			var factor := point_factors[i]
 			colors[i] = Color(
-				base_color.r * f,
-				base_color.g * f,
-				base_color.b * f,
-				base_color.a * f
+				base_color.r * factor,
+				base_color.g * factor,
+				base_color.b * factor,
+				base_color.a * factor
 			)
 		draw_polyline_colors(points, colors, width, true)
 		return
@@ -546,7 +456,7 @@ func _compute_corner_strength(points: PackedVector2Array, index: int, closed: bo
 		return 0.0
 
 	if not closed and (index == 0 or index == count - 1):
-		return corner_endpoint_boost
+		return _active_preset.corner_endpoint_boost
 
 	if count < 3:
 		return 0.0
@@ -562,9 +472,9 @@ func _compute_corner_strength(points: PackedVector2Array, index: int, closed: bo
 
 	var v_in := points[index] - points[prev_index]
 	var v_out := points[next_index] - points[index]
-	if v_in.length_squared() < 0.000001 or v_out.length_squared() < 0.000001:
+	if v_in.length_squared() < VECTOR_LENGTH_EPSILON_SQ or v_out.length_squared() < VECTOR_LENGTH_EPSILON_SQ:
 		return 0.0
 
-	var dot := clampf(v_in.normalized().dot(v_out.normalized()), -1.0, 1.0)
-	var turn_angle := acos(dot)
+	var turn_dot := clampf(v_in.normalized().dot(v_out.normalized()), -1.0, 1.0)
+	var turn_angle := acos(turn_dot)
 	return clampf(turn_angle / PI, 0.0, 1.0)

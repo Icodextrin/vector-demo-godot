@@ -26,6 +26,8 @@ This is an experimental baseline intended for iteration and extension into a ful
 - `res://scripts/vector_renderer.gd` - centralized vector beam renderer and trail persistence.
 - `res://scripts/vector_renderer_preset.gd` - reusable renderer preset resource type.
 - `res://scripts/vector_entity.gd` - base entity interface for submitting vector draw commands.
+- `res://scripts/vector_draw_command.gd` - typed render command payload used by entities/renderer.
+- `res://scripts/vector_trail_state.gd` - typed per-command trail history state.
 - `res://scripts/vector_style.gd` - shared visual style resource (beam widths/colors/decay).
 - `res://scripts/vector_shape.gd` - local-space shape resource for reusable geometry.
 
@@ -53,6 +55,7 @@ Renderer tuning controls are intentionally centralized in the preset resource to
 ## Documentation
 
 See:
-- `res://docs/vector_beam_gameplay_guide.md`
+- `res://docs/rendering_guide.md`
+- `res://docs/regression_checklist.md`
 
 for detailed technical documentation, API notes, extension guidelines, and preset tuning range tables.

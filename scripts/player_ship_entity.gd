@@ -1,8 +1,8 @@
 class_name PlayerShipEntity
 extends VectorEntity
 
-@export var ship_length: float = 64.0
-@export var ship_width: float = 40.0
+@export_range(1.0, 512.0, 1.0) var ship_length: float = 64.0
+@export_range(1.0, 512.0, 1.0) var ship_width: float = 40.0
 
 func _ready() -> void:
 	_rebuild_ship_shape()
@@ -12,8 +12,8 @@ func _rebuild_ship_shape() -> void:
 	if vector_shape == null:
 		vector_shape = VectorShape.new()
 
-	var half_length := ship_length * 0.5
-	var half_width := ship_width * 0.5
+	var half_length := maxf(1.0, ship_length) * 0.5
+	var half_width := maxf(1.0, ship_width) * 0.5
 	vector_shape.points_local = PackedVector2Array([
 		Vector2(0.0, -half_length),
 		Vector2(half_width, half_length),
