@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="VectorRendererPreset" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/vector_renderer_preset.gd" id="1_preset"]
+
+[resource]
+script = ExtResource("1_preset")
+decay_alpha = 0.02
+default_max_trail_samples = 240
+default_min_sample_motion = 0.006
+outer_soft_blur_enabled = true
+outer_soft_blur_passes = 4
+outer_soft_blur_width_step = 0.9
+outer_soft_blur_alpha_scale = 0.32
+ghost_blur_enabled = true
+ghost_blur_width_scale = 3.7
+ghost_blur_alpha_scale = 0.28
+ghost_dot_fade = 0.95
+ghost_jitter_enabled = true
+ghost_jitter_pixels = 1.2
+ghost_jitter_speed = 2.3
+ghost_jitter_age_scale = 1.2
+ghost_jitter_stationary_scale = 0.16
+ghost_jitter_moving_scale = 1.5
+ghost_jitter_motion_min = 1.5
+ghost_jitter_motion_max = 14.0
+ghost_jitter_motion_response = 0.24
+ghost_jitter_max_rise_per_sample = 0.12
+corner_dwell_enabled = true
+corner_dwell_boost = 1.85
+corner_dwell_power = 1.1
+corner_endpoint_boost = 0.14
+retrace_dimming_enabled = true
+retrace_reference_length = 28.0
+retrace_dimming_strength = 0.045
+two_stage_decay_enabled = true
+two_stage_knee_energy = 0.28
+two_stage_tail_alpha_multiplier = 0.22
+background_color = Color(0, 0, 0, 1)

@@ -94,6 +94,27 @@ Current persistence values:
 - Player: `decay_alpha = 0.02` (longer trails)
 - Wall: `decay_alpha = 0.08` (faster fade; walls also disable trails in demo)
 
+### 4.4 `VectorRendererPreset` (`res://scripts/vector_renderer_preset.gd`)
+
+Defines reusable renderer-level tuning bundles (trail, blur, jitter, dwell, retrace, decay).
+
+Notable field groups:
+- Trail sampling/decay: `decay_alpha`, `default_max_trail_samples`, `default_min_sample_motion`, `two_stage_decay_*`
+- Halo shaping: `outer_soft_blur_*`, `ghost_blur_*`
+- Jitter behavior: `ghost_jitter_*` (including `ghost_jitter_motion_response` and `ghost_jitter_max_rise_per_sample` for movement-start smoothing)
+- Beam character: `corner_dwell_*`, `retrace_*`
+
+Built-in preset resources:
+- `res://presets/vector_renderer/clean_vector.tres`
+- `res://presets/vector_renderer/medium_vector.tres`
+- `res://presets/vector_renderer/oscilloscope.tres`
+- `res://presets/vector_renderer/blown_out_oscilloscope.tres`
+
+Usage:
+- Assign a preset to `VectorRenderer.renderer_preset`.
+- `VectorRenderer` uses preset values as its runtime source of truth.
+- Tuning should be done in the preset resource, not directly on `VectorRenderer`.
+
 ## 5) Command Contract (`VectorEntity -> VectorRenderer`)
 
 Each command is a `Dictionary` with required and optional fields.
@@ -109,8 +130,9 @@ Optional:
 - `closed: bool` (default `false`)
 - `draw_vertex_dots: bool` (default `true`)
 - `trail_enabled: bool` (default `true`)
-- `max_trail_samples: int` (default renderer export)
+- `max_trail_samples: int` (defaults to renderer preset value)
 - `decay_alpha: float` (per-command override; otherwise style or renderer fallback)
+- `min_sample_motion: float` (override dedup motion threshold for this command)
 
 Identity rule:
 - `key` should be stable across frames for the same visual primitive.
@@ -122,18 +144,18 @@ Identity rule:
 
 Public/exported fields:
 - `default_style`
-- `decay_alpha` (global fallback only)
-- `default_max_trail_samples`
-- `default_min_sample_motion` (dedup threshold to avoid repeated identical trail samples)
-- `ghost_blur_enabled`
-- `ghost_blur_width_scale`
-- `ghost_blur_alpha_scale`
-- `ghost_dot_fade`
-- `background_color`
+- `renderer_preset`
+
+Renderer tuning fields are intentionally not exported on `VectorRenderer` to avoid duplicate UI.
+They are configured via `VectorRendererPreset` resources.
 
 Public method:
 - `submit_command(command: Dictionary) -> void`
   - Queues a draw command for ingestion.
+- `apply_preset(preset: VectorRendererPreset) -> void`
+  - Applies a preset programmatically at runtime.
+- `snapshot_preset() -> VectorRendererPreset`
+  - Returns a preset resource snapshot from current renderer values.
 
 Internal methods:
 - `_process(delta)`  
@@ -165,6 +187,7 @@ Exports:
 - `draw_layer`
 - `trail_enabled`
 - `max_trail_samples`
+- `min_sample_motion` (`-1.0` means use renderer preset default)
 - `command_key`
 
 Core methods:
@@ -316,6 +339,35 @@ func build_draw_commands() -> Array[Dictionary]:
 }
 ```
 
+### 8.4 Switching presets at runtime
+
+```gdscript
+@onready var renderer: VectorRenderer = $SubViewportContainer/SubViewport/VectorRenderer
+
+func _ready() -> void:
+	var preset := load("res://presets/vector_renderer/oscilloscope.tres") as VectorRendererPreset
+	renderer.apply_preset(preset)
+```
+
+### 8.5 Saving your own preset resource
+
+Recommended workflow:
+1. Duplicate one of the preset `.tres` files in `res://presets/vector_renderer/`.
+2. Rename it (for example `my_arcade_mix.tres`).
+3. Edit values in Inspector.
+4. Assign it to `VectorRenderer.renderer_preset`.
+
+Alternative workflow:
+1. In Inspector, set `renderer_preset` to `New VectorRendererPreset`.
+2. Tune values on the renderer.
+3. Save the resource as a new `.tres` file.
+
+Scripted workflow:
+```gdscript
+var preset := renderer.snapshot_preset()
+ResourceSaver.save(preset, "res://presets/vector_renderer/my_custom_mix.tres")
+```
+
 ## 9) Performance Notes
 
 Expected costs scale with:
@@ -358,8 +410,30 @@ No persistence:
 
 Repeating grouped ghosts (e.g. several close copies then a gap):
 - Cause: render-frame submission with physics-tick movement can produce repeated identical samples.
-- Fix: increase `VectorRenderer.default_min_sample_motion` slightly (for example `0.01` to `0.5`) or pass `min_sample_motion` per command.
+- Fix: increase `VectorRendererPreset.default_min_sample_motion` slightly (for example `0.01` to `0.5`) or pass `min_sample_motion` per command.
 - Optional smoothing: enable and tune `ghost_blur_*` settings so older samples spread/fade more naturally.
+
+Trails feel too noisy or unstable:
+- Lower `ghost_jitter_pixels` and/or disable `ghost_jitter_enabled`.
+- Reduce `ghost_blur_width_scale` and `ghost_blur_alpha_scale`.
+- Lower `ghost_jitter_stationary_scale` to suppress jitter during subtle motion/rotation.
+- Raise `ghost_jitter_moving_scale` or lower `ghost_jitter_motion_min` if fast movement looks too stable.
+- Lower `ghost_jitter_motion_response` to smooth jitter ramps at movement start.
+- Lower `ghost_jitter_max_rise_per_sample` to cap sudden jitter spikes when movement starts from rest.
+
+Dots feel too flat or too harsh:
+- Tune corner dwell (`corner_dwell_*`) to emphasize or soften corner persistence.
+
+Long segments too bright:
+- Increase `retrace_dimming_strength` or lower `retrace_reference_length`.
+
+Long segments too dim:
+- Lower `retrace_dimming_strength` (new default range is tuned for subtle values; start around `0.01` to `0.05`).
+
+Outer beam edge looks too sharp:
+- Increase `outer_soft_blur_passes` and/or `outer_soft_blur_alpha_scale`.
+- Increase `outer_soft_blur_width_step` to push blur further beyond the core halo width.
+- Reduce `beam_width_inner` or outer beam alpha if the center still reads too hard.
 
 Static objects smearing:
 - Set `trail_enabled = false` for static entities.

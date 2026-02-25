@@ -4,5 +4,6 @@
 
 [resource]
 script = ExtResource("1_style")
-beam_width_outer = 2.0
+beam_width_outer = 5.0
+vertex_dot_radius = 2.0
 decay_alpha = 0.4

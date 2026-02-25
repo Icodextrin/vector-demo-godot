@@ -8,6 +8,7 @@ extends Node2D
 @export var draw_layer: int = 0
 @export var trail_enabled: bool = true
 @export var max_trail_samples: int = 180
+@export var min_sample_motion: float = -1.0
 @export var command_key: String = ""
 
 var _vector_renderer: VectorRenderer
@@ -38,6 +39,8 @@ func _process(_delta: float) -> void:
 			command.trail_enabled = trail_enabled
 		if not command.has("max_trail_samples"):
 			command.max_trail_samples = max_trail_samples
+		if min_sample_motion >= 0.0 and not command.has("min_sample_motion"):
+			command.min_sample_motion = min_sample_motion
 		if not command.has("draw_vertex_dots"):
 			command.draw_vertex_dots = true
 		_vector_renderer.submit_command(command)
