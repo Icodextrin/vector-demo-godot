@@ -29,6 +29,16 @@ This is an experimental baseline intended for iteration and extension into a ful
 - `res://scripts/vector_style.gd` - shared visual style resource (beam widths/colors/decay).
 - `res://scripts/vector_shape.gd` - local-space shape resource for reusable geometry.
 
+## Render Functions
+
+Current `VectorRenderer` pipeline/functions include:
+- Command ingest with duplicate suppression by motion threshold (`min_sample_motion`).
+- Two-stage decay + dead-sample pruning.
+- Multi-pass softened outer halo draw (`_draw_outer_halo`).
+- Age-based ghost blur and vertex-dot fade.
+- Optional jitter with movement-aware ramp (`_compute_jitter_offset`, `_compute_motion_blend`).
+- Retrace dimming + corner dwell weighting for beam/dot character.
+
 ## Renderer Presets
 
 Included presets:
@@ -45,4 +55,4 @@ Renderer tuning controls are intentionally centralized in the preset resource to
 See:
 - `res://docs/vector_beam_gameplay_guide.md`
 
-for detailed technical documentation, API notes, and extension guidelines.
+for detailed technical documentation, API notes, extension guidelines, and preset tuning range tables.

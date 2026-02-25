@@ -37,16 +37,20 @@ Per frame, `VectorRenderer` performs:
 
 1. Decay existing trail energy for each command key.
 2. Ingest new frame commands from entities.
+   - Near-duplicate samples are merged using `min_sample_motion` instead of always appending.
 3. Remove dead samples (energy threshold).
 4. Clear to black.
 5. Draw each layer in ascending order.
 6. For each sample:
-   - Draw outer beam polyline
-   - Draw inner core polyline
-   - Draw optional vertex dots
+   - Optionally apply age-based ghost jitter offset.
+   - Draw softened outer halo (`_draw_outer_halo`).
+   - Draw optional age-based ghost blur passes.
+   - Draw inner core polyline.
+   - Draw optional vertex dots with corner dwell and retrace dimming factors.
 
 Persistence model:
-- Each submitted command appends a sample when `trail_enabled = true`.
+- Each submitted command updates trail state when `trail_enabled = true`.
+- If the new sample is near the latest sample (by `min_sample_motion`), the latest sample is refreshed instead of appending.
 - Sample energies are multiplied by a frame decay factor.
 - Decay uses per-command/per-style `decay_alpha` with renderer fallback.
 
@@ -115,6 +119,46 @@ Usage:
 - `VectorRenderer` uses preset values as its runtime source of truth.
 - Tuning should be done in the preset resource, not directly on `VectorRenderer`.
 
+### 4.5 Recommended Preset Ranges (Quick Tuning)
+
+| Setting | Typical range | Lower values tend to... | Higher values tend to... |
+| --- | --- | --- | --- |
+| `decay_alpha` | `0.01` to `0.08` | Keep trails longer | Fade trails faster |
+| `default_max_trail_samples` | `120` to `360` | Reduce ghost history length | Increase ghost history length/cost |
+| `default_min_sample_motion` | `0.003` to `0.06` | Keep more subtle sub-frame motion | Suppress grouped duplicate ghosts |
+| `outer_soft_blur_passes` | `2` to `6` | Keep halo tighter/cleaner | Increase halo softness and fill |
+| `outer_soft_blur_width_step` | `0.3` to `1.2` | Keep glow close to line | Push glow farther from line |
+| `outer_soft_blur_alpha_scale` | `0.08` to `0.50` | Reduce outer haze | Increase bloom/halo density |
+| `ghost_blur_width_scale` | `1.5` to `5.2` | Keep ghosts crisp | Smear older ghosts wider |
+| `ghost_blur_alpha_scale` | `0.06` to `0.45` | Make tails cleaner/fainter | Make tails thicker/brighter |
+| `ghost_jitter_pixels` | `0.0` to `2.0` | Keep ghosts stable | Add analog wobble |
+| `ghost_jitter_motion_response` | `0.12` to `0.30` | Smooth response to motion changes | React to movement changes faster |
+| `ghost_jitter_max_rise_per_sample` | `0.05` to `0.16` | Reduce startup jitter spikes | Allow faster jitter ramp-up |
+| `retrace_dimming_strength` | `0.01` to `0.05` | Keep long segments brighter | Dim long retrace segments more |
+
+### 4.6 Built-in Preset Value Matrix
+
+These are the current shipped values in `res://presets/vector_renderer/*.tres`.
+
+| Setting | Clean | Medium | Oscilloscope | Blown-out Oscilloscope |
+| --- | ---: | ---: | ---: | ---: |
+| `decay_alpha` | `0.08` | `0.03` | `0.02` | `0.012` |
+| `default_max_trail_samples` | `120` | `180` | `240` | `360` |
+| `default_min_sample_motion` | `0.05` | `0.01` | `0.006` | `0.003` |
+| `outer_soft_blur_passes` | `2` | `4` | `4` | `6` |
+| `outer_soft_blur_width_step` | `0.35` | `0.65` | `0.9` | `1.2` |
+| `outer_soft_blur_alpha_scale` | `0.08` | `0.28` | `0.32` | `0.5` |
+| `ghost_blur_width_scale` | `1.55` | `2.8` | `3.7` | `5.2` |
+| `ghost_blur_alpha_scale` | `0.06` | `0.20` | `0.28` | `0.45` |
+| `ghost_jitter_pixels` | `0.15` | `0.8` | `1.2` | `2.0` |
+| `ghost_jitter_stationary_scale` | `0.0` | `0.12` | `0.16` | `0.2` |
+| `ghost_jitter_moving_scale` | `0.2` | `1.25` | `1.5` | `2.0` |
+| `ghost_jitter_motion_min` | `2.0` | `2.0` | `1.5` | `1.0` |
+| `ghost_jitter_motion_max` | `16.0` | `18.0` | `14.0` | `10.0` |
+| `ghost_jitter_motion_response` | `0.12` | `0.18` | `0.24` | `0.3` |
+| `ghost_jitter_max_rise_per_sample` | `0.05` | `0.08` | `0.12` | `0.16` |
+| `retrace_dimming_strength` | `0.015` | `0.03` | `0.045` | `0.02` |
+
 ## 5) Command Contract (`VectorEntity -> VectorRenderer`)
 
 Each command is a `Dictionary` with required and optional fields.
@@ -166,13 +210,23 @@ Internal methods:
   Applies energy decay per trail state using `state.decay_alpha`.  
   Uses a per-frame cache of decay factors to avoid repeated `pow()` for identical decay values.
 - `_ingest_commands()`  
-  Merges submitted commands into trail state.
+  Merges submitted commands into trail state, including duplicate suppression by motion threshold.
 - `_cleanup_dead_trails()`  
   Removes samples below threshold (`energy <= 0.01`).
 - `_draw_layer(layer)` and `_draw_beam(...)`  
   Render layer-ordered samples with outer+inner beam and optional dots.
+- `_draw_outer_halo(...)`  
+  Draws softened multi-pass halo profile around the beam.
 - `_resolve_decay_alpha(style)`  
   Chooses style decay or fallback renderer decay.
+- `_compute_jitter_offset(...)`  
+  Produces deterministic age-scaled jitter offset per sample.
+- `_compute_motion_blend(...)`  
+  Computes stationary-to-moving jitter blend factor with ramp control.
+- `_build_retrace_point_factors(...)` and `_draw_polyline_with_factors(...)`  
+  Apply retrace dimming to long segments using per-point color scaling.
+- `_compute_corner_strength(...)`  
+  Computes corner/endpoint dwell emphasis for vertex dots.
 
 ### 6.2 `VectorEntity` (`res://scripts/vector_entity.gd`)
 
@@ -257,7 +311,7 @@ Relevant nodes:
 - `SubViewportContainer`
 - `SubViewport` (`render_target_clear_mode = 1`, `render_target_update_mode = 4`)
 - `WorldEnvironment` (glow enabled)
-- `VectorRenderer` (default style + decay fallback)
+- `VectorRenderer` (default style + renderer preset)
 - `BouncingBall` (`BouncingBallEntity`)
 
 How it works:
@@ -274,7 +328,7 @@ Scene intent:
 Relevant nodes:
 - One `VectorRenderer`
 - `PlayerShipBody` (`CharacterBody2D` with `PlayerShipController` + collider)
-- `PlayerShipVisual` (`PlayerShipEntity`, trails enabled)
+- `PlayerShipVisual` (`PlayerShipEntity`, trails disabled in this demo for clean silhouette)
 - Multiple wall/obstacle `StaticBody2D` nodes with:
   - `CollisionShape2D`
   - `Visual` child (`StaticVectorEntity`, trails disabled)
@@ -378,6 +432,7 @@ Expected costs scale with:
 Current optimizations in code:
 - Dead sample pruning (`energy > 0.01`)
 - Per-frame decay factor cache by decay alpha value
+- Near-duplicate sample suppression (`min_sample_motion`)
 - Layer-based draw grouping
 
 Recommended scaling strategy:
@@ -393,7 +448,7 @@ When adding a new vector object:
 2. Build `VectorShape` local points (or procedural points).
 3. Assign style resource (`VectorStyle`).
 4. Set stable `command_key`.
-5. Choose `trail_enabled`, `max_trail_samples`, and optional `decay_alpha` override.
+5. Choose `trail_enabled`, `max_trail_samples`, `min_sample_motion`, and optional `decay_alpha` override.
 6. Place entity in scene and link to renderer (`vector_renderer_path`) or rely on group resolution.
 
 ## 11) Troubleshooting
