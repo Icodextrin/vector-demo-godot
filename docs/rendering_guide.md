@@ -14,6 +14,8 @@ The project implements a reusable 2D vector rendering stack for Godot 4.x with:
 Primary implementation files:
 - `res://scripts/vector_renderer.gd`
 - `res://scripts/vector_entity.gd`
+- `res://scripts/vector_draw_command.gd`
+- `res://scripts/vector_trail_state.gd`
 - `res://scripts/vector_style.gd`
 - `res://scripts/vector_shape.gd`
 
@@ -161,7 +163,7 @@ These are the current shipped values in `res://presets/vector_renderer/*.tres`.
 
 ## 5) Command Contract (`VectorEntity -> VectorRenderer`)
 
-Each command is a `Dictionary` with required and optional fields.
+Preferred command type is `VectorDrawCommand`. `Dictionary` payloads are still accepted for backwards compatibility.
 
 Required:
 - `key: String`
@@ -194,7 +196,7 @@ Renderer tuning fields are intentionally not exported on `VectorRenderer` to avo
 They are configured via `VectorRendererPreset` resources.
 
 Public method:
-- `submit_command(command: Dictionary) -> void`
+- `submit_command(command_data: Variant) -> void`
   - Queues a draw command for ingestion.
 - `apply_preset(preset: VectorRendererPreset) -> void`
   - Applies a preset programmatically at runtime.
@@ -247,7 +249,7 @@ Exports:
 Core methods:
 - `_process(_delta)`  
   Calls `build_draw_commands()`, injects defaults, submits commands.
-- `build_draw_commands() -> Array[Dictionary]`  
+- `build_draw_commands() -> Array`  
   Default implementation builds one command from `vector_shape`.
   Override to submit multiple primitives per entity.
 - `_to_world_points(points_local)`  
@@ -345,7 +347,7 @@ How it works:
 ### 8.1 Overriding `build_draw_commands()` for multiple primitives
 
 ```gdscript
-func build_draw_commands() -> Array[Dictionary]:
+func build_draw_commands() -> Array:
 	var hull := _to_world_points(_hull_points_local)
 	var thruster := _to_world_points(_thruster_points_local)
 	return [

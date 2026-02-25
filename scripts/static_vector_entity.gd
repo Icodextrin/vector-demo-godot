@@ -12,9 +12,10 @@ func _rebuild_rect_shape() -> void:
 	if vector_shape == null:
 		vector_shape = VectorShape.new()
 
+	var safe_size := Vector2(maxf(1.0, rect_size.x), maxf(1.0, rect_size.y))
 	var points := PackedVector2Array()
 	if centered:
-		var half := rect_size * 0.5
+		var half := safe_size * 0.5
 		points = PackedVector2Array([
 			Vector2(-half.x, -half.y),
 			Vector2(half.x, -half.y),
@@ -24,9 +25,9 @@ func _rebuild_rect_shape() -> void:
 	else:
 		points = PackedVector2Array([
 			Vector2.ZERO,
-			Vector2(rect_size.x, 0.0),
-			Vector2(rect_size.x, rect_size.y),
-			Vector2(0.0, rect_size.y)
+			Vector2(safe_size.x, 0.0),
+			Vector2(safe_size.x, safe_size.y),
+			Vector2(0.0, safe_size.y)
 		])
 
 	vector_shape.points_local = points

@@ -85,7 +85,6 @@ shape = SubResource("CircleShape2D_ship")
 
 [node name="PlayerShipVisual" type="Node2D" parent="SubViewportContainer/SubViewport/PlayerShipBody" unique_id=2142290686]
 script = ExtResource("3_ship_visual")
-vector_renderer_path = NodePath("../../VectorRenderer")
 vector_style = ExtResource("5_player_style")
 draw_layer = 10
 max_trail_samples = 220
@@ -102,7 +101,6 @@ shape = SubResource("RectangleShape2D_top")
 [node name="TopWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/TopWall" unique_id=1745765194]
 script = ExtResource("4_static_visual")
 rect_size = Vector2(1700, 60)
-vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
 command_key = "wall_top"
@@ -116,7 +114,6 @@ shape = SubResource("RectangleShape2D_bottom")
 [node name="BottomWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/BottomWall" unique_id=6601657]
 script = ExtResource("4_static_visual")
 rect_size = Vector2(1700, 60)
-vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
 command_key = "wall_bottom"
@@ -130,7 +127,6 @@ shape = SubResource("RectangleShape2D_left")
 [node name="LeftWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/LeftWall" unique_id=19316450]
 script = ExtResource("4_static_visual")
 rect_size = Vector2(60, 900)
-vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
 command_key = "wall_left"
@@ -144,7 +140,6 @@ shape = SubResource("RectangleShape2D_right")
 [node name="RightWallVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/RightWall" unique_id=444328453]
 script = ExtResource("4_static_visual")
 rect_size = Vector2(60, 900)
-vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
 command_key = "wall_right"
@@ -159,7 +154,6 @@ shape = SubResource("RectangleShape2D_obstacle_a")
 [node name="CenterObstacleAVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleA" unique_id=2095454238]
 script = ExtResource("4_static_visual")
 rect_size = Vector2(380, 48)
-vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
 command_key = "obstacle_a"
@@ -174,7 +168,6 @@ shape = SubResource("RectangleShape2D_obstacle_b")
 [node name="CenterObstacleBVisual" type="Node2D" parent="SubViewportContainer/SubViewport/Walls/CenterObstacleB" unique_id=511737292]
 script = ExtResource("4_static_visual")
 rect_size = Vector2(380, 48)
-vector_renderer_path = NodePath("../../../VectorRenderer")
 vector_style = ExtResource("6_wall_style")
 trail_enabled = false
 command_key = "obstacle_b"
