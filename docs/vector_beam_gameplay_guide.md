@@ -189,18 +189,25 @@ Key custom methods:
 
 Behavior:
 - Triangle-like ship geometry.
+- Rendering-only ship visual submission (no movement or collision logic).
+
+Key custom methods:
+- `_rebuild_ship_shape()`
+
+### 6.5 `PlayerShipController` (`res://scripts/player_ship_controller.gd`)
+
+Behavior:
+- `CharacterBody2D`-based ship movement and collision.
 - Rotation + thrust + braking + damping.
-- Optional screen wrapping.
+- Uses `move_and_slide()` for wall response.
 
 Input actions used:
 - `ui_left`, `ui_right`, `ui_up`, `ui_down`
 
 Key custom methods:
 - `_physics_process(delta)`
-- `_rebuild_ship_shape()`
-- `_wrap_to_viewport()`
 
-### 6.5 `StaticVectorEntity` (`res://scripts/static_vector_entity.gd`)
+### 6.6 `StaticVectorEntity` (`res://scripts/static_vector_entity.gd`)
 
 Behavior:
 - Procedural rectangle shape for walls/obstacles.
@@ -238,14 +245,18 @@ Scene intent:
 
 Relevant nodes:
 - One `VectorRenderer`
-- `PlayerShip` (`PlayerShipEntity`, trails enabled)
-- Multiple wall/obstacle nodes (`StaticVectorEntity`, trails disabled)
+- `PlayerShipBody` (`CharacterBody2D` with `PlayerShipController` + collider)
+- `PlayerShipVisual` (`PlayerShipEntity`, trails enabled)
+- Multiple wall/obstacle `StaticBody2D` nodes with:
+  - `CollisionShape2D`
+  - `Visual` child (`StaticVectorEntity`, trails disabled)
 
 How it works:
-1. `PlayerShipEntity` simulates input-driven movement.
-2. `StaticVectorEntity` nodes contribute static rectangle commands.
-3. Both use same renderer with different styles.
-4. Walls render crisp and stable (`trail_enabled = false`), while ship leaves trails.
+1. `PlayerShipController` handles movement and collision in physics.
+2. `PlayerShipVisual` inherits body transform and submits ship draw commands.
+3. Wall `StaticBody2D` nodes block the ship physically.
+4. Wall visual children submit static rectangle commands to the same renderer.
+5. Rendering and physics stay isolated while remaining transform-synchronized.
 
 ## 8) Demo Snippets
 
@@ -345,3 +356,15 @@ Static objects smearing:
 
 Path resolution issues:
 - `vector_renderer_path` is optional; renderer auto-resolves by group `vector_renderer`.
+
+SubViewport parent-path gotcha (important):
+- If your `SubViewport` is under `SubViewportContainer`, nested node parents must include the full path, e.g.:
+  - `SubViewportContainer/SubViewport/...`
+- Using truncated parent paths (for example `SubViewport/...`) can cause Godot to auto-rewrite nodes as `SubViewport#...` and rehome children at root.
+- Symptoms include:
+  - `CollisionShape2D` warnings saying shapes are not children of physics bodies
+  - objects rendering near `(0, 0)` / top-left unexpectedly
+- Recovery:
+  1. Fix parent paths in `.tscn`.
+  2. Close scene tabs without saving.
+  3. Reopen scene from FileSystem so Godot rebuilds the tree from disk.

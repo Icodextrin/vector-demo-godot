@@ -26,5 +26,5 @@ window/size/viewport_height=1080
 
 [rendering]
 
-environment/defaults/default_clear_color=Color(0, 0, 0, 1)
 viewport/hdr_2d=true
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)

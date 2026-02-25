@@ -19,7 +19,7 @@ This is an experimental baseline intended for iteration and extension into a ful
   Bouncing vector circle demo using the shared renderer/entity architecture.
 
 - `res://scenes/player_ship_walls_demo.tscn`  
-  Player-controlled triangle ship plus static rectangle walls/obstacles.
+  Player-controlled triangle ship plus static rectangle walls/obstacles, using `CharacterBody2D` + `StaticBody2D` collision while keeping vector rendering in separate visual entity scripts.
 
 ## Core Scripts
 

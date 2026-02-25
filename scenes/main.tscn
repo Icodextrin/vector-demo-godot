@@ -43,15 +43,15 @@ size = Vector2i(1920, 1080)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewport"]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport"]
 environment = SubResource("Environment_1")
 
-[node name="VectorRenderer" type="Node2D" parent="SubViewport"]
+[node name="VectorRenderer" type="Node2D" parent="SubViewportContainer/SubViewport"]
 script = ExtResource("1_renderer")
 default_style = ExtResource("3_style")
 decay_alpha = 0.03
 
-[node name="BouncingBall" type="Node2D" parent="SubViewport"]
+[node name="BouncingBall" type="Node2D" parent="SubViewportContainer/SubViewport"]
 script = ExtResource("2_ball")
 vector_renderer_path = NodePath("../VectorRenderer")
 vector_style = ExtResource("3_style")

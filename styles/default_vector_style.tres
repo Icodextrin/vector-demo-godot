@@ -1,13 +1,6 @@
-[gd_resource type="Resource" script_class="VectorStyle" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="VectorStyle" format=3 uid="uid://brl4ln1gqohe3"]
 
-[ext_resource type="Script" path="res://scripts/vector_style.gd" id="1_style"]
+[ext_resource type="Script" uid="uid://c7emdc4u52p7m" path="res://scripts/vector_style.gd" id="1_style"]
 
 [resource]
 script = ExtResource("1_style")
-beam_width_outer = 19.0
-beam_width_inner = 1.0
-vertex_dot_radius = 3.1
-decay_alpha = 0.03
-beam_color_outer = Color(0.8, 0.8, 0.8, 0.2)
-beam_color_inner = Color(3.6, 3.6, 3.6, 1)
-vertex_dot_color = Color(6, 6, 6, 1)
