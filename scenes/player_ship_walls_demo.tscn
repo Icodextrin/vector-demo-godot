@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://pxd0miifek2i" path="res://scripts/vector_renderer.gd" id="1_renderer"]
 [ext_resource type="Script" uid="uid://dmeroxinuq7wv" path="res://scripts/player_ship_controller.gd" id="2_controller"]
+[ext_resource type="Resource" path="res://presets/vector_renderer/clean_vector.tres" id="3_rubn4"]
 [ext_resource type="Script" uid="uid://bu2oli76feyaq" path="res://scripts/player_ship_entity.gd" id="3_ship_visual"]
 [ext_resource type="Script" uid="uid://ni7y3xc1xvqg" path="res://scripts/static_vector_entity.gd" id="4_static_visual"]
 [ext_resource type="Resource" uid="uid://iob05p4u1cwn" path="res://styles/player_vector_style.tres" id="5_player_style"]
@@ -73,7 +74,7 @@ environment = SubResource("Environment_1")
 [node name="VectorRenderer" type="Node2D" parent="SubViewportContainer/SubViewport" unique_id=884012467]
 script = ExtResource("1_renderer")
 default_style = ExtResource("5_player_style")
-ghost_blur_width_scale = 20.0
+renderer_preset = ExtResource("3_rubn4")
 
 [node name="PlayerShipBody" type="CharacterBody2D" parent="SubViewportContainer/SubViewport" unique_id=1772490236]
 position = Vector2(960, 540)

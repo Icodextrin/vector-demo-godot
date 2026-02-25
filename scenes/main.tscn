@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/vector_renderer.gd" id="1_renderer"]
 [ext_resource type="Script" path="res://scripts/bouncing_ball_entity.gd" id="2_ball"]
 [ext_resource type="Resource" path="res://styles/default_vector_style.tres" id="3_style"]
+[ext_resource type="Resource" path="res://presets/vector_renderer/medium_vector.tres" id="4_preset"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 3
@@ -49,7 +50,7 @@ environment = SubResource("Environment_1")
 [node name="VectorRenderer" type="Node2D" parent="SubViewportContainer/SubViewport"]
 script = ExtResource("1_renderer")
 default_style = ExtResource("3_style")
-decay_alpha = 0.03
+renderer_preset = ExtResource("4_preset")
 
 [node name="BouncingBall" type="Node2D" parent="SubViewportContainer/SubViewport"]
 script = ExtResource("2_ball")
